@@ -73,8 +73,47 @@ $ heroku login --interactive
 # 新しいアプリケーションの作成
 $ heroku create
 
+# masterブランチへmerge
+$ git checkout master
+$ git merge <マージするブランチ名>
+
 # herokuへデプロイ
 $ git push heroku master
 
-
 ```
+### staticpages_controller.rb の作成
+```
+# コントローラーの作成
+$ rails g StaticPages home help
+Running via Spring preloader in process 6709
+      create  app/controllers/static_pages_controller.rb
+       route  get 'static_pages/help'
+       route  get 'static_pages/home'
+      invoke  erb
+      create    app/views/static_pages
+      create    app/views/static_pages/home.html.erb
+      create    app/views/static_pages/help.html.erb
+      invoke  test_unit
+      create    test/controllers/static_pages_controller_test.rb
+      invoke  helper
+      create    app/helpers/static_pages_helper.rb
+      invoke    test_unit
+      invoke  assets
+      invoke    coffee
+      create      app/assets/javascripts/static_pages.coffee
+      invoke    scss
+      create      app/assets/stylesheets/static_pages.scss
+```
+コントローラを作成するとき  
+rails g controller <コントローラ名> <アクション名>  
+と入力する  
+コントローラ名は複数形で入力。これはRailsのルール。  
+のちに出てくるmodelは単数形で入力。  
+アクション名を入れると  
+* ルート
+* viewファイル
+
+が作成される。そして作成されたコントローラーのメソッド名に定義される。  
+つまりコントローラをジェネレートしたら、ルート、コントローラのメソッド、viewの3つが作成されるので、  
+root_path/アクション にアクセスすれば、ブラウザでデフォルトページがみられる状態になっている。  
+
