@@ -116,4 +116,73 @@ rails g controller <コントローラ名> <アクション名>
 が作成される。そして作成されたコントローラーのメソッド名に定義される。  
 つまりコントローラをジェネレートしたら、ルート、コントローラのメソッド、viewの3つが作成されるので、  
 root_path/アクション にアクセスすれば、ブラウザでデフォルトページがみられる状態になっている。  
+  
+もう一つ作成されるものがTest。  
+何らかの変更を行う際には、常に「自動化テスト」を作成して、機能が正しく実装されたことを確認する習慣を身に着ける。  
+  
+テストを書くタイミング  
+* アプリケーションのコードよりも明らかにテストコードの方が短くシンプルになる (=簡単に書ける) のであれば、「先に」書く
+* 動作の仕様がまだ固まりきっていない場合、アプリケーションのコードを先に書き、期待する動作を「後で」書く
+* セキュリティが重要な課題またはセキュリティ周りのエラーが発生した場合、テストを「先に」書く
+* バグを見つけたら、そのバグを再現するテストを「先に」書き、回帰バグを防ぐ体制を整えてから修正に取りかかる
+* すぐにまた変更しそうなコード (HTML構造の細部など) に対するテストは「後で」書く
+* リファクタリングするときは「先に」テストを書く。特に、エラーを起こしそうなコードや止まってしまいそうなコードを集中的にテストする
+  
+
+### 初めてのテスト
+test/controllers/static_pages_controller_test.rb　　
+```
+class StaticPagesControllerTest < ActionDispatch::IntegrationTest
+  test "should get home" do
+    get static_pages_home_url
+    assert_response :success
+  end
+
+  test "should get help" do
+    get static_pages_help_url
+    assert_response :success
+  end
+
+  # 追記
+  test "should get about" do
+    get static_pages_about_url
+    assert_response :success
+  end
+end
+```
+上述のように追記するとエラーになる。  
+about のルートもアクションも未定義のため、以下のようなエラーが発生。  
+```
+1) Error:
+StaticPagesControllerTest#test_should_get_about:
+NameError: undefined local variable or method `static_pages_about_url' for #<StaticPagesControllerTest:0x000000000462b7f0>
+```
+ルートの設定、コントローラでアクションの設定、viewの設定をしてあげれば、エラー回避でます。  
+  
+app/views/layouts/application.html.erb  
+```
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= yield :title %> | Mutter App</title>
+    <%= csrf_meta_tags %>
+
+    <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+    <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+  </head>
+
+  <body>
+    <%= yield %>
+  </body>
+</html>
+```
+レイアウトを使う際に、/static_pages/homeにアクセスするとhome.html.erbの内容がHTMLに変換され、<%= yield %>の位置に挿入される  
+```
+<%= csrf_meta_tags %>
+<%= stylesheet_link_tag ... %>
+<%= javascript_include_tag "application", ... %>
+```
+上の3つのERBは、それぞれスタイルシート、JavaScript、csrf_meta_tagsメソッドをページ内で展開するためのものです。スタイルシートとJavaScriptは、Asset Pipeline (5.2.1) の一部です。csrf_meta_tagsは、Web攻撃手法の１つであるクロスサイトリクエストフォージェリー (Cross-Site Request Forgery: CSRF)を防ぐために使われるRailsのメソッドです。  
+
+
 
