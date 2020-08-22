@@ -184,6 +184,7 @@ app/views/layouts/application.html.erb
 ```
 上の3つのERBは、それぞれスタイルシート、JavaScript、csrf_meta_tagsメソッドをページ内で展開するためのもの。スタイルシートとJavaScriptは、Asset Pipeline (5.2.1) の一部。csrf_meta_tagsは、Web攻撃手法の１つであるクロスサイトリクエストフォージェリー (Cross-Site Request Forgery: CSRF)を防ぐために使われるRailsのメソッド。  
 
+※ブランチ 3_static-pageにこの3章のまとめの内容を盛り込み漏れたので3_static-pageをcloneする際は以下の内容をコードにも盛り込んでないので気を付けること  
 ### 3章のまとめ
 * 新しいRailsアプリケーションをゼロから作成したのはこれで3度目。今回も必要なgemのインストール、リモートリポジトリへのプッシュ、production環境まで行った
 * コントローラを新規作成するためのrailsコマンドはrails generate controller ControllerName アクション名 (省略可)。
@@ -283,4 +284,42 @@ end
 # Ignore Spring files.
 /spring/*.pid
 ```
+  
+## 4章
+### カスタムヘルパー
+新しく作ったメソッドはカスタムヘルパー と呼ばれる。  
+** full_titileヘルパー **
+yieldにあるタイトルが何もない場合、" | Mutter App"と "|"が余計。  
+なので、タイトルが何もない場合、"Mutter App" にする。  
+app/helpers/application_helper.rb  
+```
+ module ApplicationHelper
++
++  # ページごとの完全なタイトルを返します。
++  def full_title(page_title = '')
++    base_title = "Mutter App"
++    if page_title.empty?
++      base_title
++    else
++      page_title + " | " + base_title
++    end
++  end
+ end
+```
+full_titileメソッドを定義したので、早速使ってみる。  
+app/views/layouts/application.html.erb  
+```
+ <!DOCTYPE html>
+ <html>
+   <head>
+-    <title><%= yield :title %> | Mutter App</title>
++    <title><%= full_title(yield :title) %></title>
+     <%= csrf_meta_tags %>
+ 
+     <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+```
+とすれば、:title が空でも "|"が付かずに表示することができる。
+  
+※module ApplicationHelper  
+モジュールは、関連したメソッドをまとめる方法の１つで、includeメソッドを使ってモジュールを読み込むことができる (ミックスイン (mixed in) とも呼ぶ)。単なるRubyのコードを書くのであれば、モジュールを作成するたびに明示的に読み込んで使うのが普通だが、Railsでは自動的にヘルパーモジュールを読み込んでくれるので、include行をわざわざ書く必要がない。つまり、このfull_titleメソッドは自動的にすべてのビューで利用できるようになっている、ということ。  
   
