@@ -157,7 +157,7 @@ about のルートもアクションも未定義のため、以下のような�
 StaticPagesControllerTest#test_should_get_about:
 NameError: undefined local variable or method `static_pages_about_url' for #<StaticPagesControllerTest:0x000000000462b7f0>
 ```
-ルートの設定、コントローラでアクションの設定、viewの設定をしてあげれば、エラー回避でます。  
+ルートの設定、コントローラでアクションの設定、viewの設定をしてあげれば、エラー回避できる。  
   
 app/views/layouts/application.html.erb  
 ```
@@ -182,7 +182,105 @@ app/views/layouts/application.html.erb
 <%= stylesheet_link_tag ... %>
 <%= javascript_include_tag "application", ... %>
 ```
-上の3つのERBは、それぞれスタイルシート、JavaScript、csrf_meta_tagsメソッドをページ内で展開するためのものです。スタイルシートとJavaScriptは、Asset Pipeline (5.2.1) の一部です。csrf_meta_tagsは、Web攻撃手法の１つであるクロスサイトリクエストフォージェリー (Cross-Site Request Forgery: CSRF)を防ぐために使われるRailsのメソッドです。  
+上の3つのERBは、それぞれスタイルシート、JavaScript、csrf_meta_tagsメソッドをページ内で展開するためのもの。スタイルシートとJavaScriptは、Asset Pipeline (5.2.1) の一部。csrf_meta_tagsは、Web攻撃手法の１つであるクロスサイトリクエストフォージェリー (Cross-Site Request Forgery: CSRF)を防ぐために使われるRailsのメソッド。  
 
+### 3章のまとめ
+* 新しいRailsアプリケーションをゼロから作成したのはこれで3度目。今回も必要なgemのインストール、リモートリポジトリへのプッシュ、production環境まで行った
+* コントローラを新規作成するためのrailsコマンドはrails generate controller ControllerName アクション名 (省略可)。
+* 新しいルーティングはconfig/routes.rbファイルで定義する
+* Railsのビューでは、静的HTMLの他にERB (埋め込みRuby: Embedded RuBy) が使える
+* 常に自動化テストを使って新機能開発を進めることで、自信を持ってリファクタリングできるようになり、回帰バグも素早くキャッチできるようになる
+* テスト駆動開発では「red ・ green ・REFACTOR」サイクルを繰り返す
+* Railsのレイアウトでは、アプリケーションのページの共通部分をテンプレートに置くことでコードの重複を解決することができる
 
+### minitest reporters
+RailsのデフォルトのテストでREDやGREENを表示するためにminitest-reporters gemを使用する  
+使い方は以下ファイルに以下の通りコードを追加する。  
+test/test_helper.rb に以下2行追加  
+```
+ ENV['RAILS_ENV'] ||= 'test'
+ require File.expand_path('../../config/environment', __FILE__)
+ require 'rails/test_help'
++require "minitest/reporters"
++Minitest::Reporters.use!
+ 
+ class ActiveSupport::TestCase
+   # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
+```
+  
+### Guardによるテスト自動化
+Guardは、ファイルシステムの変更を監視し、例えばstatic_pages_test.rbファイルなどを変更すると自動的にテストを実行してくれるツール。  
+gem ファイルにすでに取り込んでいるので、あとは初期化だけ。  
+```
+$ bundle exec guard init
+13:19:17 - INFO - Writing new Guardfile to /home/ec2-user/environment/rails_tutorial_app/Guardfile
 
+# Cloud9を使っている場合は、Guardの通知を有効にするためにtmuxをインストールする必要があり
+$ sudo yum install -y tmux    # Cloud9を使っている場合に必要
+```
+  
+Guardfile  
+```
+# Guardのマッチング規則を定義
+guard :minitest, spring: "bin/rails test", all_on_start: false do
+  watch(%r{^test/(.*)/?(.*)_test\.rb$})
+  watch('test/test_helper.rb') { 'test' }
+  watch('config/routes.rb')    { integration_tests }
+  watch(%r{^app/models/(.*?)\.rb$}) do |matches|
+    "test/models/#{matches[1]}_test.rb"
+  end
+  watch(%r{^app/controllers/(.*?)_controller\.rb$}) do |matches|
+    resource_tests(matches[1])
+  end
+  watch(%r{^app/views/([^/]*?)/.*\.html\.erb$}) do |matches|
+    ["test/controllers/#{matches[1]}_controller_test.rb"] +
+    integration_tests(matches[1])
+  end
+  watch(%r{^app/helpers/(.*?)_helper\.rb$}) do |matches|
+    integration_tests(matches[1])
+  end
+  watch('app/views/layouts/application.html.erb') do
+    'test/integration/site_layout_test.rb'
+  end
+  watch('app/helpers/sessions_helper.rb') do
+    integration_tests << 'test/helpers/sessions_helper_test.rb'
+  end
+  watch('app/controllers/sessions_controller.rb') do
+    ['test/controllers/sessions_controller_test.rb',
+     'test/integration/users_login_test.rb']
+  end
+  watch('app/controllers/account_activations_controller.rb') do
+    'test/integration/users_signup_test.rb'
+  end
+  watch(%r{app/views/users/*}) do
+    resource_tests('users') +
+    ['test/integration/microposts_interface_test.rb']
+  end
+end
+
+# 与えられたリソースに対応する統合テストを返す
+def integration_tests(resource = :all)
+  if resource == :all
+    Dir["test/integration/*"]  else
+    Dir["test/integration/#{resource}_*.rb"]
+  end
+end
+
+# 与えられたリソースに対応するコントローラのテストを返す
+def controller_test(resource)
+  "test/controllers/#{resource}_controller_test.rb"
+end
+
+# 与えられたリソースに対応するすべてのテストを返す
+def resource_tests(resource)
+  integration_tests(resource) << controller_test(resource)
+end
+```
+上記の通りに編集。  
+
+.gitignoreにSpringを追加
+```
+# Ignore Spring files.
+/spring/*.pid
+```
+  
