@@ -368,5 +368,71 @@ lib/tasks/auto_annotate_models.rake
     'show_indexes'  => 'false'
 ```
 これでコメントが自動につくはず。modelの作成までのお楽しみ。  
+  
+### Webサイトのレイアウト navタグ
+app/views/layouts/application.html.erb  
+```
+    <!--[if lt IE 9]>
+      <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/r29/html5.min.js">
+      </script>
+    <![endif]-->
+```
+条件付きコメントと呼ばれるもので、今回のような状況のためにInternet Explorerで特別にサポートされている。これにより、Firefox、Chrome、Safariなどの他のブラウザに影響を与えずに、IEのバージョンが9未満の場合にのみHTML5 shimを読み込めるため、非常に好都合。  
+  
+Homeページを作成していく。  
+app/views/static_pages/home.html.erb  
+```
+<div class="center jumbotron">
+  <h1>Welcome to the Sample App</h1>
 
+  <h2>
+    This is the home page for the
+    <a href="https://railstutorial.jp/">Ruby on Rails Tutorial</a>
+    sample application.
+  </h2>
 
+  <%= link_to "Sign up now!", '#', class: "btn btn-lg btn-primary" %>
+</div>
+
+<%= link_to image_tag("rails.png", alt: "Rails logo"),
+            'http://rubyonrails.org/' %>
+```
+  
+** link_to **
+第1引数はリンクテキスト、第2引数はURL。このURLは5.3.3で名前付きルート (Named Routes) に置き換えますが、今はWebデザインで一般に使われるスタブ用の (とりあえずのダミーとして使われる) URL「'#'」を置いておく。第3引数はオプションハッシュで、この場合はサンプルアプリのリンクでCSS id logoを指定している。  
+** image_tag **  
+Railsは該当する画像ファイルを、アセットパイプラインを通してapp/assets/images/ディレクトリの中から探してくれる。  
+第一引数にimageファイル名。第二引数にalt属性。  
+  
+画像をダウンロードする  
+```
+$ curl -o app/assets/images/rails.png -OL railstutorial.jp/rails.png  
+```
+Railsは該当する画像ファイルを、アセットパイプラインを通してapp/assets/images/ディレクトリの中から探してくれる。  
+  
+### bootstrap
+Gemfile  
+```
+ gem 'rails',        '5.1.6'
++gem 'bootstrap-sass', '3.3.7'
+ gem 'puma',         '3.9.1'
+ gem 'sass-rails',   '5.0.6'
+ gem 'uglifier',     '3.2.0'
+```
+```
+$ bundle install --without development
+```
+このチュートリアルでは (簡潔のために) すべてのCSSを1つにまとめる方針を採っている。カスタムCSSを動かすための最初の一歩は、カスタムCSSファイルを作ること。  
+```
+$ touch app/assets/stylesheets/custom.scss
+```
+app/assets/stylesheets/custom.scss  
+```
+@import "bootstrap-sprockets";
+@import "bootstrap";
+```
+  
+こうすることで、bootstrapが適用され、Home pageのレイアウトに変化がみられる。  
+※ちなみにb[ootstrap4 勉強しました](https://github.com/8-trees-coffee/rails5.0_boards_app/tree/97_boundary-value-and-mock#bootstrap%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB)。  
+  
+TODO CSSのお勉強、Bootstrapの使い方
