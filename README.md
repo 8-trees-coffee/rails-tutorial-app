@@ -323,3 +323,50 @@ app/views/layouts/application.html.erb
 ※module ApplicationHelper  
 モジュールは、関連したメソッドをまとめる方法の１つで、includeメソッドを使ってモジュールを読み込むことができる (ミックスイン (mixed in) とも呼ぶ)。単なるRubyのコードを書くのであれば、モジュールを作成するたびに明示的に読み込んで使うのが普通だが、Railsでは自動的にヘルパーモジュールを読み込んでくれるので、include行をわざわざ書く必要がない。つまり、このfull_titleメソッドは自動的にすべてのビューで利用できるようになっている、ということ。  
   
+### 4章まとめ
+* Rubyは文字列を扱うためのメソッドを多数持っている
+* Rubyの世界では、すべてがオブジェクトである
+* Rubyではdefというキーワードを使ってメソッドを定義する
+* Rubyではclassというキーワードを使ってクラスを定義する
+* Railsのビューでは、静的HTMLの他にERB (埋め込みRuby: Embedded RuBy) も使える
+* Rubyの組み込みクラスには配列、範囲、ハッシュなどがある
+* Rubyのブロックは (他の似た機能と比べ) 柔軟な機能で、添え字を使ったデータ構造よりも自然にイテレーションができる
+* シンボルとはラベルである。追加的な構造を持たない (代入などができない) 文字列みたいなもの
+* Rubyではクラスを継承できる
+* Rubyでは組み込みクラスですら内部を見たり修正したりできる
+* 「deified」という単語は回文である
+
+ 
+## 5章
+### annotate インストール
+modelを触る前から少し気が早いかもしれないが、思い出したので先にインストールしておく。  
+annotate。  
+モデルの構造をモデルファイルにコメントとして記載してくれる。  
+各スキーマの情報をファイルの先頭にコメント追記してくれるgem。  
+例えば、あるテーブルのカラムって何があったか知りたいときに一々DBへアクセスしてなどがなくなる。  
+  
+Gemfile  
+```
+group :development do
+   gem 'listen',                '3.1.5'
+   gem 'spring',                '2.0.2'
+   gem 'spring-watcher-listen', '2.0.1'
++  gem 'annotate'
+ end
+```
+```
+$ bundle install --without development
+
+# annotateの設定ファイルを作成
+$ rails g annotate:install
+```
+lib/tasks/auto_annotate_models.rake  
+```
+    # 以下を true から false へ変更する
+    'show_indexes'  => 'true'
+
+    'show_indexes'  => 'false'
+```
+これでコメントが自動につくはず。modelの作成までのお楽しみ。  
+
+
