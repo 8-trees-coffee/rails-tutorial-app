@@ -288,7 +288,7 @@ end
 ## 4章
 ### カスタムヘルパー
 新しく作ったメソッドはカスタムヘルパー と呼ばれる。  
-** full_titileヘルパー **
+**full_titileヘルパー**  
 yieldにあるタイトルが何もない場合、" | Mutter App"と "|"が余計。  
 なので、タイトルが何もない場合、"Mutter App" にする。  
 app/helpers/application_helper.rb  
@@ -321,7 +321,9 @@ app/views/layouts/application.html.erb
 とすれば、:title が空でも "|"が付かずに表示することができる。
   
 ※module ApplicationHelper  
-モジュールは、関連したメソッドをまとめる方法の１つで、includeメソッドを使ってモジュールを読み込むことができる (ミックスイン (mixed in) とも呼ぶ)。単なるRubyのコードを書くのであれば、モジュールを作成するたびに明示的に読み込んで使うのが普通だが、Railsでは自動的にヘルパーモジュールを読み込んでくれるので、include行をわざわざ書く必要がない。つまり、このfull_titleメソッドは自動的にすべてのビューで利用できるようになっている、ということ。  
+モジュールは、関連したメソッドをまとめる方法の１つで、includeメソッドを使ってモジュールを読み込むことができる(ミックスイン (mixed in) とも呼ぶ)。
+単なるRubyのコードを書くのであれば、モジュールを作成するたびに明示的に読み込んで使うのが普通だが、Railsでは自動的にヘルパーモジュールを読み込んでくれるので、include行をわざわざ書く必要がない。
+つまり、このfull_titleメソッドは自動的にすべてのビューで利用できるようになっている、ということ。  
   
 ### 4章まとめ
 * Rubyは文字列を扱うためのメソッドを多数持っている
@@ -398,9 +400,9 @@ app/views/static_pages/home.html.erb
             'http://rubyonrails.org/' %>
 ```
   
-** link_to **
+**link_to**  
 第1引数はリンクテキスト、第2引数はURL。このURLは5.3.3で名前付きルート (Named Routes) に置き換えますが、今はWebデザインで一般に使われるスタブ用の (とりあえずのダミーとして使われる) URL「'#'」を置いておく。第3引数はオプションハッシュで、この場合はサンプルアプリのリンクでCSS id logoを指定している。  
-** image_tag **  
+**image_tag**  
 Railsは該当する画像ファイルを、アセットパイプラインを通してapp/assets/images/ディレクトリの中から探してくれる。  
 第一引数にimageファイル名。第二引数にalt属性。  
   
@@ -436,3 +438,112 @@ app/assets/stylesheets/custom.scss
 ※ちなみにb[ootstrap4 勉強しました](https://github.com/8-trees-coffee/rails5.0_boards_app/tree/97_boundary-value-and-mock#bootstrap%E3%81%AE%E3%82%A4%E3%83%B3%E3%82%B9%E3%83%88%E3%83%BC%E3%83%AB)。  
   
 TODO CSSのお勉強、Bootstrapの使い方
+  
+### Partial
+パーシャルはviewファイルに記載している一部をパーツ化するイメージ。  
+_XXXX.html.erb とアンダーバーを入れて、パーシャルにする。パーシャルを使いたいときはrenderメソッドを使用する。  
+/app/views/layouts/application.html.erb  
+```
+     <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+     <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+-    <!--[if lt IE 9]>
+-      <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/r29/html5.min.js">
+-      </script>
+-    <![endif]-->
++    <%= render partial: 'layouts/shim' %>
+   </head>
+   <body>
+-    <header class="navbar navbar-fixed-top navbar-inverse">
+-      <div class="container">
+-        <%= link_to "Mutter app", '#', id<: "logo" %>
+-        <nav>
+-          <ul class="nav navbar-nav navbar-right">
+-            <li><%= link_to "Home",   '#' %></li>
+-            <li><%= link_to "Help",   '#' %></li>
+-            <li><%= link_to "Log in", '#' %></li>
+-          </ul>
+-        </nav>
+-      </div>
+-    </header>
++    <%= render partial: 'layouts/header' %>
+     <div class="container">
+```
+render partial: 'layouts/shim' のように、partialのkeyにlayouts から記載しないといけないのはどうしてだろうと考えた。
+実際、render partial: 'shim' と書いて、アクセスするとエラーになる。
+static_pages/_shim はないですよとなるのだ。これはstatic_pages_controllerが呼び出され、例えばhomeアクションが指定されたら、views/static_pages/home.html.erbを見に行くので
+partialで呼び出すときもstatic_pagesフォルダを見に行くのだと思う。  
+これはあくまで私の推測。だから、partialのkeyに layouts/ を入れるのが必要だと思った。  
+  
+shim, header, footer とrails_default, 演習でhead を作成していく  
+
+### アセットパイプライン
+チュートリアルを読むこと!!(そんなこと言ったら全部そうなる)  
+scssファイルはネストできる  
+
+### レイアウトのリンク
+aタブを使うのではなく、link_to メソッドを使うのがrails流。  
+link_toの引数であるリンク先のパスの記載の仕方がroutes.rbの書き方で分かりやすくなる  
+  
+root_pathやroot_urlといったメソッドを通してURLを参照することができる。
+ちなみに前者はルートURL以下の文字列を、後者は完全なURLの文字列を返す。  
+```
+root_path -> '/'
+root_url  -> 'http://www.example.com/'
+```
+基本的には_path書式を使い、リダイレクトの場合のみ_url書式を使うようにする。
+これはHTTPの標準としては、リダイレクトのときに完全なURLが要求されるため。
+ただしほとんどのブラウザでは、どちらの方法でも動作する。  
+
+### リンクのテスト
+統合テストを使うと、アプリケーションの動作を端から端まで (end-to-end) シミュレートしてテストすることができる。  
+assert_select は柔軟でパワフルな機能。自分で調べてみるといいかも。  
+Applicationヘルパーで使っているfull_titleヘルパーを、test環境でも使えるようにすると便利。
+なので、test/test_helper.rb でApplicationHelper モジュールをインクルードしてやる。
+ApplicationHelperモジュールはapplication_helper.rbで作成している。4章で作りましたよ~。忘れたら4章へ戻りましょ。  
+自作のモジュールはカスタムヘルパーと呼ぶ!!  
+app/helpers/application_helper.rb  
+```
+module ApplicationHelper
+
+  # ページごとの完全なタイトルを返します。
+  def full_title(page_title = '')
+    base_title = "Mutter App"
+    if page_title.empty?
+      base_title
+    else
+      page_title + " | " + base_title
+    end
+  end
+end
+```
+こいつをtest環境でも使えるようにするには、以下のようにする  
+test/test_helper.rb  
+```
+Minitest::Reporters.use!
+ class ActiveSupport::TestCase
+   # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
+   fixtures :all
++  include ApplicationHelper
+ 
+   # Add more helper methods to be used by all tests here...
+ end
+```
+そして、full_title自体を評価するテストケースを作成することができる  
+test/helpers/application_helper_test.rbを作成  
+```
+require 'test_helper'
+
+class ApplicationHelperTest < ActionView::TestCase
+  test "full title helper" do
+    assert_equal full_title,         "Mutter App"
+    assert_equal full_title("Help"), "Help | Mutter App"
+  end
+end
+```
+  
+### Usersコントローラの作成
+Usersコントローラを作成し、newアクションを生成する。このnewアクションはサインアップのアクションとなる。  
+pathをsignup_pathを使えるように、config/routes.rbを変えて、users_controller_test.rbの getするpathを更新しておく。  
+このときにroutesを調べようと、rails routesを実行したらエラーになった。  
+どうやら、annotateが悪さをしているようだ…。余計なことをやってしまった。  
+とりあえず、先に進もう。  
