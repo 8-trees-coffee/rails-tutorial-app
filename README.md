@@ -340,7 +340,7 @@ app/views/layouts/application.html.erb
 
  
 ## 5章
-### annotate インストール
+### annotate インストール (⇒ これは今やらないほうがいい)
 modelを触る前から少し気が早いかもしれないが、思い出したので先にインストールしておく。  
 annotate。  
 モデルの構造をモデルファイルにコメントとして記載してくれる。  
@@ -547,3 +547,159 @@ pathをsignup_pathを使えるように、config/routes.rbを変えて、users_c
 このときにroutesを調べようと、rails routesを実行したらエラーになった。  
 どうやら、annotateが悪さをしているようだ…。余計なことをやってしまった。  
 とりあえず、先に進もう。  
+⇒ この先、進むとrails db:migrate ができなくなるので、 lib/tasks/auto_annotate_models.rake を削除した。  
+   折を見て、もう一度annotateを使用してみようと思う  
+   
+### 5章まとめ
+* HTML5を使ってheaderやfooter、logoやbodyといったコンテンツのレイアウトを定義しました
+* Railsのパーシャルは効率化のために使われ、別ファイルにマークアップを切り出すことができます
+* CSSは、CSSクラスとidを使ってレイアウトやデザインを調整します
+* Bootstrapフレームワークを使うと、いい感じのデザインを素早く実装できる
+* SassとAsset Pipelineは、(開発効率のために切り分けられた) CSSの冗長な部分を圧縮し、本番環境に最適化した結果を出力する
+* Railsのルーティングでは自由にルールを定義することができ、また、その際に名前付きルートも使えるようになる
+* 統合テストは、ブラウザによるページ間の遷移を効率的にシミュレートする
+
+## 6章
+ユーザーモデルを作成していく。6章、7章、8章、9章、10章と完成させていく。9章から難しくなるから、じっくり取り組んでいく。  
+Railsでは、データを永続化するデフォルトの解決策として、データベースを使ってデータを長期間保存する。
+また、データベースとやりとりをするデフォルトのRailsライブラリはActive Recordと呼ばれる。
+Active Recordは、データオブジェクトの作成/保存/検索のためのメソッドを持っている。  
+Users  
+|id|name|email|
+|1|Michael Hartl|mhartl@example.com|
+|2|Sterling Archer|archer@example.gov|
+  
+という形でデータコラムがname, emailとある場合は以下のようにジェネレートする
+```
+$ rails g model User name:string email:string
+```
+modelを作成するときは、単数形にするので、Userとなる。(ちなみにControllerの時は複数形であった)  
+こうすると、db/migrate/にマイグレーションファイルが作成される。  
+db/migrate/[timestamp]_create_users.rb  
+```
+class CreateUsers < ActiveRecord::Migration[5.1]
+  def change
+    create_table :users do |t|
+      t.string :name
+      t.string :email
+
+      t.timestamps
+    end
+  end
+end
+```
+マイグレーション自体は、データベースに与える変更を定義したchangeメソッドの集まり。
+changeメソッドはcreate_tableというRailsのメソッドを呼び、ユーザーを保存するためのテーブルをデータベースに作成する。
+create_tableメソッドはtオブジェクトを使って、nameとemailカラムをデータベースに作る。
+モデル名は単数形 (User) ですが、テーブル名は複数形 (users)。
+これはRailsで用いられる言葉の慣習を反映している。
+モデルはひとりのユーザーを表すのに対し、データベースのテーブルは複数のユーザーから構成される。
+ブロックの最後の行t.timestampsは特別なコマンドで、created_atとupdated_atという２つの「マジックカラム (Magic Columns)」を作成する。
+これらは、あるユーザーが作成または更新されたときに、その時刻を自動的に記録するタイムスタンプ。  
+マイグレーションは以下の通り  
+```
+$ rails db:migrate
+```
+そうすると、db/schema.rbが以下のように変わる  
+```
+ActiveRecord::Schema.define(version: 20200829214124) do
+
+  create_table "users", force: :cascade do |t|
+    t.string "name"
+    t.string "email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+end
+```
+ちなみに、
+```
+$ rails db:rollback
+```
+をすると、マイグレーション前に戻る。schema.rbは以下になっている。  
+db/schema.rb  
+```
+ActiveRecord::Schema.define(version: 0) do
+
+end
+```
+何もなくなった。マイグレーションして戻しておきましょう。  
+  
+データベースができたんで、色々調べていきますが、この時に便利なのがコンソールをサンドボックスモードで起動させること。  
+```
+$ rails console -s
+```
+"Any modifications you make will be rolled back on exit" 
+(ここで行ったすべての変更は終了時にロールバックされます) というメッセージにわかりやすく示されているように、
+コンソールをサンドボックスで起動すると、
+そのセッションで行ったデータベースへの変更をコンソールの終了時にすべて “ロールバック” (取り消し) してくれる。
+  
+チュートリアルを見ながら、色々調べていくが、ポイントなのは使用されているメソッド。あとのコードを組む際にたくさん使用されるので、整理しておくといい。  
+**ユーザ情報の作成と保存、削除のメソッド**  
+* 作成：new  
+* 保存: save  
+* 作成と保存一緒にやる: create  
+* 削除: destroy(createの逆)
+ 
+
+newはsing up機能になる。この時、createは使わない。なぜなら、不適切な情報でユーザー情報をsign upされてしまう可能性があるため。
+createを使用すると、作成~保存まで一気に処理をしてしまうが、newとsaveに分けることにより、newされてsaveをしようとした時に登録情報が適切かどうかの判断ができる。
+その場合は、saveができないように制御するようにすれば、データベースに不適切なユーザ情報を保存せず済む
+(この機能をvalidationというが、この後勉強する)  
+  
+**ユーザ情報検索**
+* find(:id)
+* find_by(key: value)
+* first 
+* all
+
+findメソッドの引数はid番号。id番号が存在しなければ、例外が発生する。  
+find_byメソッドは、引数に例えば email: "mhartl@example.com" と入れて使うと、そのemailを持っているユーザを検索することができる。　　
+firstメソッドは最初のユーザを検索することができ、allは全員を調べることができる。all.lengthとやると、登録ユーザ数が返ってくる。  
+  
+**ユーザ情報更新**
+* 個別代入 (saveメソッドでsaveをしないと保存されない)
+* update_attributes (成功時には変更と保存を同時に行う。検証に失敗するとこのメソッドの呼び出しに失敗する)
+* update_attribute (特定の属性のみを更新したい場合に使用。このメソッドは検証回避できる)
+ 
+
+()に詳細を記載したが、一週目の時はupdate_attributesとupdate_attributeの違いに気付かず、混乱した。
+また、保存や更新が一気にされるメソッドとそうではないメソッドがあるのでそこもポイントだと思う。
+そこも今思えば、混乱ポイントになっていたと思う。全然わかっていなかった。  
+  
+### 検証
+このチュートリアルではよく使われる以下の検証について説明してくれるようだ。  
+* 存在性 (presence)の検証
+* 長さ (length)の検証
+* フォーマット (format)の検証
+* 一意性 (uniqueness)の検証
+* 確認(confirmation)
+ 
+
+これだけ説明してくれれば十分だと思う。  
+  
+まずはテストケースの作成。  
+まず有効なモデルのオブジェクトを作成し、その属性のうちの1つを有効でない属性に意図的に変更する。
+そして、バリデーションで失敗するかどうかをテストする。
+以上のような方針でテストケースの作成をする。
+念のため、最初に作成時の状態に対してもテストを書いておき、最初のモデルが有効であるかどうかも確認してく。
+このようにテストすることで、バリデーションのテストが失敗したとき、バリデーションの実装に問題があったのか、
+オブジェクトそのものに問題があったのかを確認することができる。  
+  
+Validationのテストは、test/models/のファイルで行う。  
+test/models/user_test.rb  
+```
+require 'test_helper'
+
+class UserTest < ActiveSupport::TestCase
+
+  def setup
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+
+  test "should be valid" do
+    assert @user.valid?
+  end
+end
+```
