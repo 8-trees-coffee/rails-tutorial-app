@@ -565,9 +565,9 @@ Railsでは、データを永続化するデフォルトの解決策として、
 また、データベースとやりとりをするデフォルトのRailsライブラリはActive Recordと呼ばれる。
 Active Recordは、データオブジェクトの作成/保存/検索のためのメソッドを持っている。  
 Users  
-|id|name|email| 
-|1|Michael Hartl|mhartl@example.com| 
-|2|Sterling Archer|archer@example.gov| 
+|id|name|email|  
+|1|Michael Hartl|mhartl@example.com|  
+|2|Sterling Archer|archer@example.gov|  
   
 という形でデータコラムがname, emailとある場合は以下のようにジェネレートする
 ```
@@ -746,7 +746,7 @@ end
 validates :name, length: { maximum: 50 }
 ```
 という感じで、長さ指定していくのです。  
-[参考URL](https://guides.rubyonrails.org/active_record_validations.html#length)  
+[※参考URL](https://guides.rubyonrails.org/active_record_validations.html#length)  
   
 ### フォーマット
 正規表現が出てきます。ここはもう一度勉強しなおさないといけない。  
@@ -842,7 +842,7 @@ case_sensitive: false にすることにより、大文字・小文字の区別�
 Active Recordはデータベースのレベルでは一意性を保証できていない。  
 具体的事例を挙げると、ユーザーが会員登録する際、登録申請ボタンを素早く2回クリックしたら、リクエストが二つ連続で送信され、
 同一のメールアドレスを持つユーザーレコードが（一意性の検証を行なっているにも関わらず）作成されてしまう。  
-**RailsのWebサイトでは、トラフィックが多い時にこのような問題が発生する**
+**RailsのWebサイトでは、トラフィックが多い時にこのような問題が発生する。**  
 そのため、以下の取り組みが必要となる。  
 データベース上のemailのカラムにインデックス(index)を追加し、そのインデックスが一意であるようにする。  
 データベース上のユーザー探索で、findメソッドを使って探す場合、
@@ -972,6 +972,7 @@ class AddPasswordDigestToUsers < ActiveRecord::Migration[5.1]
 end
 ```
 上述のようにチェンジメソッドに、usersテーブルにpassword_digestコラムをstring型として追加されるように自動的に記載される。  
+  
 **混乱するところ**  
 さきほど、emailカラムにindexを追加したが、それは手動でadd_indexメソッドを記載したなと思う。あのときはなぜ同じように自動的に追記されなかったの？  
 今回のpassword_digestはusersテーブルにカラムを追加したが、indexはemailカラムにindexを追加した。つまり、追加した階層が異なる。  
@@ -979,7 +980,7 @@ end
 users
 * id
 * name
-* email ---- email
+* email ---- email  
           ┗- index_users_on_email
 * created_at
 * updated_at
