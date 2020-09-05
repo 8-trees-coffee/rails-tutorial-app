@@ -565,9 +565,9 @@ Railsでは、データを永続化するデフォルトの解決策として、
 また、データベースとやりとりをするデフォルトのRailsライブラリはActive Recordと呼ばれる。
 Active Recordは、データオブジェクトの作成/保存/検索のためのメソッドを持っている。  
 Users  
-|id|name|email|
-|1|Michael Hartl|mhartl@example.com|
-|2|Sterling Archer|archer@example.gov|
+|id|name|email| 
+|1|Michael Hartl|mhartl@example.com| 
+|2|Sterling Archer|archer@example.gov| 
   
 という形でデータコラムがname, emailとある場合は以下のようにジェネレートする
 ```
@@ -626,7 +626,7 @@ end
 ```
 何もなくなった。マイグレーションして戻しておきましょう。  
   
-データベースができたんで、色々調べていきますが、この時に便利なのがコンソールをサンドボックスモードで起動させること。  
+データベースができたので色々調べていくが、この時にコンソールをサンドボックスモードで起動させて、データベースの挙動を見ていくとよい。  
 ```
 $ rails console -s
 ```
@@ -636,6 +636,7 @@ $ rails console -s
 そのセッションで行ったデータベースへの変更をコンソールの終了時にすべて “ロールバック” (取り消し) してくれる。
   
 チュートリアルを見ながら、色々調べていくが、ポイントなのは使用されているメソッド。あとのコードを組む際にたくさん使用されるので、整理しておくといい。  
+  
 **ユーザ情報の作成と保存、削除のメソッド**  
 * 作成：new  
 * 保存: save  
@@ -698,8 +699,376 @@ class UserTest < ActiveSupport::TestCase
     @user = User.new(name: "Example User", email: "user@example.com")
   end
 
-  test "should be valid" do
     assert @user.valid?
   end
 end
 ```
+### 存在性
+ユーザー登録する際に名前を空欄にして登録しようとすると大概エラーが出る。  
+それを設定する。  
+まずはテストから。名前が空欄の場合、valid? で falseがでることをテスト。  
+test/models/user_test.rb  
+```
+require 'test_helper'
+
+class UserTest < ActiveSupport::TestCase
+
+  def setup
+    @user = User.new(name: "Example User", email: "user@example.com")
+  end
+
+  test "should be valid" do
+    assert @user.valid?
+  end
+  
++ test "name should be present" do
++   @user.name = "   "
++   assert_not @user.valid?
++ end
+end
+```
+この時点でrails test:model をやるとエラーになる。名前を空欄で入力しても登録できる状態のため。では空欄の場合、はじく設定をモデルで行う。  
+app/models/user.rb  
+```
+class User < ApplicationRecord
+  validates :name, presence: true
+end
+```
+これで設定ができました。再びrails test:model をやるとテストがパスすると思います。同じように、メールも設定しちゃいましょう。  
+
+**失敗したときに作られるerrorsオブジェクト**
+もし、falseだったらerrorsオブジェクトが作成されます。@user.errors.full_messagesのように使用すると、エラーメッセージ全文を取得できます。  
+このあと、@user.valid? でfalseの場合、view上でユーザにエラー内容を知らせるためにerrorsオブジェクトを使用しますので覚えておきましょう。  
+  
+### 長さ
+ここは文字数制限ですね。○○文字までしか入力できません、などというやつですね。  
+```
+validates :name, length: { maximum: 50 }
+```
+という感じで、長さ指定していくのです。  
+[参考URL](https://guides.rubyonrails.org/active_record_validations.html#length)  
+  
+### フォーマット
+正規表現が出てきます。ここはもう一度勉強しなおさないといけない。  
+【TODO】正規表現の勉強  
+ここでは、メールアドレスの正しいフォーマットかどうかを検証。たとえば"@"がちゃんとあるとか、"/"などの無効な文字が使用されていないかなど。  
+では、早速テスト。有効なメールパターンと無効なメールパターン色々設定してのテスト。 
+まずは有効なパターン。  
+test/models/user_test.rb  
+```
+  ...
+  
+  test "email validation should accept valid addresses" do
+    valid_addresses = %w[user@example.com USER@foo.COM A_US-ER@foo.bar.org
+                         first.last@foo.jp alice+bob@baz.cn]
+    valid_addresses.each do |valid_address|
+      @user.email = valid_address
+      assert @user.valid?, "#{valid_address.inspect} should be valid"
+    end
+  end
+
+```
+上述のようにassertメソッドの第2引数にエラーメッセージを追加すると、どのメールアドレスでテストが失敗したのかを特定できるようになる。  
+  
+**inspectメソッド**
+これは要求されたオブジェクトを表現する文字列を返す。  
+  
+そして無効なパターン。  
+test/models/user_test.rb  
+```
+  ...
+  
+  test "email validation should reject invalid addresses" do
+    invalid_addresses = %w[user@example,com user_at_foo.org user.name@example.
+                           foo@bar_baz.com foo@bar+baz.com]
+    invalid_addresses.each do |invalid_address|
+      @user.email = invalid_address
+      assert_not @user.valid?, "#{invalid_address.inspect} should be invalid"
+    end
+  end
+end
+```
+  
+そして、フォーマットを検証する。  
+```
+  validates :email, format: { with: /<regular expression>/ }
+```
+上記の <regular expression> に正規表現を入れますが、そこには定数を定義して使用するのがよい。  
+```
+  VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i
+  validates :email, format: { with: VALID_EMAIL_REGEX }
+```  
+  
+### 一意性
+メールアドレス、ダブってないよねってのを確認。  
+:uniquenessを使用して、ダブり検証をします。
+  
+では、まずテスト。  
+test/models/user_test.rb
+```
+  test "email addresses should be unique" do
+    duplicate_user = @user.dup
+    @user.save
+    assert_not duplicate_user.valid?
+  end
+```
+dupメソッドで@userをもう一個作成(duplicate_user)。@userをセーブした後に、duplicate_userは重複するため、valid?でfalseを返すはず。  
+では次に、user/models/user.rbで:uniquenessを使おう。  
+app/models/user.rb  
+```
+  validates :email, uniqueness: true
+```
+これを追記すればOK!!  
+ただ、テストのduplicate_user のメールアドレスを大文字にしたら、これは重複したってことにならない。よって、uniquenessをパスしてしまう。  
+テストしてみればわかる。  
+test/models/user_test.rb
+```
+  test "email addresses should be unique" do
+    duplicate_user = @user.dup
++   duplicate_user.email.upcase!
+    @user.save
+    assert_not duplicate_user.valid?
+  end
+```
+上記一行追加して、rails test:models を行うと、エラーとなる。  
+これを解決するには、以下のようにモデルの検証設定を行えばよい。  
+app/models/user.rb  
+```
+  validates :email, uniqueness: { case_sensitive: false }
+```
+case_sensitive: false にすることにより、大文字・小文字の区別を無効とする  
+  
+これで終了…と思いきや、まだ終わりではない。  
+Active Recordはデータベースのレベルでは一意性を保証できていない。  
+具体的事例を挙げると、ユーザーが会員登録する際、登録申請ボタンを素早く2回クリックしたら、リクエストが二つ連続で送信され、
+同一のメールアドレスを持つユーザーレコードが（一意性の検証を行なっているにも関わらず）作成されてしまう。  
+**RailsのWebサイトでは、トラフィックが多い時にこのような問題が発生する**
+そのため、以下の取り組みが必要となる。  
+データベース上のemailのカラムにインデックス(index)を追加し、そのインデックスが一意であるようにする。  
+データベース上のユーザー探索で、findメソッドを使って探す場合、
+今のままでは先頭から順にユーザーを一人ずつ探していくことになる。
+そうなると、例えばユーザーが1000人登録されている場合、1000番目のユーザーを探し当てるには1000回もサーチしなければならない。
+これはデータベースの世界では全表スキャン(Full-table Scan)として知られており、
+DBへの負担やリクエストの回数など考えても極めてよくない。  
+その点からもemailのカラムにインデックスを追加すれば、
+割り当てたインデックスを管理する表の中から探し当てればいい訳で、
+アルゴリズムの計算量が比較的少なくて済む。  
+emailカラムにインデックスを追加するためには、migrationジェネレーターを使ってマイグレーションを直接作成する必要がある。  
+```
+$ rails g migration add_index_to_user_email
+      invoke  active_record
+      create    db/migrate/20200905110035_add_index_to_user_email.rb
+```
+  
+生成されたファイルに、[add_indexというメソッド](https://railsdoc.com/migration#add_index)を使ってusersテーブルのemailカラムに、一意性を強制する為のunique: trueオプションを渡す。  
+db/migrate/20200905110035_add_index_to_user_email.rb  
+```
+class AddIndexToUserEmail < ActiveRecord::Migration[5.1]
+  def change
+    add_index :users, :email, unique: true
+  end
+end
+```
+設定したらDBへ反映  
+```
+$ rails db:migrate
+```
+db/schema.rb  
+```
+   create_table "users", force: :cascade do |t|
+     t.string "name"
+     t.string "email"
+     t.datetime "created_at", null: false
+     t.datetime "updated_at", null: false
++    t.index ["email"], name: "index_users_on_email", unique: true
+   end
+```
+create_tableにt.indexが追加された  
+  
+この時点ではテストDB用のサンプルデータが含まれているfixtures内で一意性の制限が保たれていないため、テスとは失敗する。  
+  
+今まではgenerateコマンドでfixtureが自動的に生成されていたが、
+今回はmigrationコマンドを使用した為生成されていない。  
+  
+test/fixtures/users.ymlをとりあえず全部クリアーにしておく。また8章で使用するらしい。  
+  
+
+あともう一つ。いくつかのデータベースのアダプタが、常に大文字小文字を区別するインデックス を使っているとは限らない問題への対処。  
+例えばFoo@ExAMPle.Comとfoo@example.comが別々の文字列と解釈してしまうケースがある。
+これらの文字列は同一であると解釈されるべきなので、
+今回はデータベースに保存される直前に全ての文字列を小文字に変換する
+  
+これを実装するために、Active Recordのcallbackメソッドを利用する。
+  
+これはある特定の時点で呼び出されるメソッド。今回はオブジェクトが保存される前に実行したいため
+before_saveというコールバックを使う。以下の通り、追記する。
+  
+app/models/user.rb
+```
+class User < ApplicationRecord
++ before_save { email.downcase! }
+  validates :name, presence: true, length: { maximum: 50 }
+  VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i
+  validates :email, presence: true, length: { maximum: 255},
+                    format: { with: VALID_EMAIL_REGEX },
+                    uniqueness: { case_sensitive: false }
+end
+```
+befre_saveコールバックに{}内のブロックを渡してユーザーのメールアドレスを設定している。
+現在の値をStringクラスのdowncaseメソッドを使って、小文字にしたメールアドレスに変換しているため、
+大文字小文字が混同する心配がなくなる。  
+ちなみに{}内の書き方は以下でもよいとのこと。  
+```
+# {}内のブロックの書き方
+# その１
+before_save { self.email = self.email.downcase }
+
+# その２
+before_save { self.email = email.downcase }
+```
+これで、素早く2回登録ボタンクリックした場合登録できてしまう問題が解決。    
+* 二度目のレコード保存のリクエストは一意性の制約によって拒否
+* emailにインデックス属性を追加したことで、サーチ効率の向上
+* 大文字小文字混同のメールアドレスをDBsave前に小文字に変換し一意性を保証
+
+### セキュアなパスワードを追加する
+セキュアなパスワードとは各ユーザーにパスワードとパスワードの確認を入力させ、それを (そのままではなく) ハッシュ化したものをデータベースに保存。
+ユーザーの認証は、パスワードの送信、ハッシュ化、データベース内のハッシュ化された値との比較、という手順で進んでいく。
+比較の結果が一致すれば、送信されたパスワードは正しいと認識され、そのユーザーは認証される。
+この『ハッシュ化された値との比較』というのがポイント。生のパスワードをデータベースに保存しなくても、認証することができる。
+仮にデータベースの内容が盗まれたとしてもパスワードの安全性は確保される。  
+  
+#### ハッシュ化されたパスワード
+**has_secure_password**  
+セキュアなパスワードを設定するには、このメソッドを使えばよい。
+このメソッドは以下の機能を使える。  
+* セキュアにハッシュ化したパスワードを、データベース内のpassword_digestという属性に保存できるようになる。
+* 2つのペアの仮想的な属性 (passwordとpassword_confirmation) が使えるようになる。また、存在性と値が一致するかどうかのバリデーションも追加される18 。
+* authenticateメソッドが使えるようになる (引数の文字列がパスワードと一致するとUserオブジェクトを、間違っているとfalseを返すメソッド) 。
+
+これを使うための条件が１つある。それは『password_digestという属性が含まれていること。』  
+  
+users
+* id
+* name
+* email
+* created_at
+* updated_at
+* password_digest
+
+したがって、usersモデルにpassword_digestのカラムを追加する。  
+```
+$ rails g migration add_password_digest_to_users password_digest:string
+      invoke  active_record
+      create    db/migrate/20200905212601_add_password_digest_to_users.rb
+```
+  
+db/migrate/20200905212601_add_password_digest_to_users.rb  
+```
+class AddPasswordDigestToUsers < ActiveRecord::Migration[5.1]
+  def change
+    add_column :users, :password_digest, :string
+  end
+end
+```
+上述のようにチェンジメソッドに、usersテーブルにpassword_digestコラムをstring型として追加されるように自動的に記載される。  
+**混乱するところ**  
+さきほど、emailカラムにindexを追加したが、それは手動でadd_indexメソッドを記載したなと思う。あのときはなぜ同じように自動的に追記されなかったの？  
+今回のpassword_digestはusersテーブルにカラムを追加したが、indexはemailカラムにindexを追加した。つまり、追加した階層が異なる。  
+テーブルにカラムを追加する場合とカラムにデータを追加する場合では違うため、混乱しないよう注意。  
+users
+* id
+* name
+* email ---- email
+          ┗- index_users_on_email
+* created_at
+* updated_at
+* password_digest
+
+こんな感じだと思う。index_users_on_emailって名前は、おそらくadd_indexメソッドの仕業だと思う。  
+これを適用するために、データベースでマイグレートを実行する  
+```
+rails db:migrate
+```
+  
+db/schema.rb  
+```
+ActiveRecord::Schema.define(version: 20200905212601) do
+
+  create_table "users", force: :cascade do |t|
+    t.string "name"
+    t.string "email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
++   t.string "password_digest"
+    t.index ["email"], name: "index_users_on_email", unique: true
+  end
+
+end
+```
+password_digestコラムが追加された。  
+has_secure_passwordを使ってパスワードをハッシュ化するためには、最先端のハッシュ関数であるbcryptが必要になる。
+パスワードを適切にハッシュ化することで、たとえ攻撃者によってデータベースからパスワードが漏れてしまった場合でも、
+Webサイトにログインされないようにできる。  
+Gemfileにbcryptを追加し、インストールをする。  
+Gemfile  
+```
+...
+
+gem 'bcrypt',         '3.1.12'
+
+...
+```
+```
+$ bundle install
+```
+これで、Userモデルにpassword_digest属性を追加し、Gemfileにbcryptを追加したことで、ようやくUserモデル内でhas_secure_passwordが使えるようになる。  
+今、テストを行うと失敗する。理由はhas_secure_passwordは仮想的にpassword属性とpassword_confirmation属性に対してバリデーションをする機能も(強制的に)追加されているから。
+そのため、テストのsetupメソッドでpassword属性とpassword_confirmation属性の設定をしてあげる。  
+test/models/user_test.rb  
+```
+class UserTest < ActiveSupport::TestCase
+
+  def setup
+    @user = User.new(name: "Example User", email: "user@example.com",
+                     password: "foobar", password_confirmation: "foobar")
+  end
+
+...
+
+```
+そうすると、テストはパスできる。  
+#### パスワードの最小文字数
+パスワードを簡単に当てられないようにするために、パスワードの最小文字数を設定しておくことは一般に実用的。
+Railsでパスワードの長さを設定する方法はたくさんあるが、今回は簡潔にパスワードが『空でないこと』と『最小文字数 (6文字)』 の2つを設定する。  
+まずは、テストケースから作成。  
+test/models/user_test.rb  
+```
+  test "password should be present (nonblank)" do
+    @user.password = @user.password_confirmation = " " * 6
+    assert_not @user.valid?
+  end
+
+  test "password should have a minimum length" do
+    @user.password = @user.password_confirmation = "a" * 5
+    assert_not @user.valid?
+  end
+```
+ちなみに、rubyのテクを紹介している。『@user.password = @user.password_confirmation = " " * 6 』多重代入を行っている。  
+
+では、validationを書く。  
+app/model/user.rb  
+```
+  validates :password, presence: true, length: { minimum: 6 }
+```
+上記を追記してあげる。  
+テストがパスするはず。  
+  
+### 6章のまとめ
+* マイグレーションを使うことで、アプリケーションのデータモデルを修正することができる
+* Active Recordを使うと、データモデルを作成したり操作したりするための多数のメソッドが使えるようになる
+* Active Recordのバリデーションを使うと、モデルに対して制限を追加することができる
+* よくあるバリデーションには、存在性・長さ・フォーマットなどがある
+* 正規表現は謎めいて見えるが非常に強力である
+* データベースにインデックスを追加することで検索効率が向上する。また、データベースレベルでの一意性を保証するためにも使われる
+* has_secure_passwordメソッドを使うことで、モデルに対してセキュアなパスワードを追加することができる
